@@ -14,9 +14,11 @@ interface Iplayer {
 
 type MyFunctionType = () => void;
 
-const ControlBtn: React.FC<{ action: MyFunctionType, text: string, bgColor: number }> = ({action, text, bgColor}) => {
+const ControlBtn: React.FC<{ action: MyFunctionType, text: string, bgColor: string }> = ({action, text, bgColor}) => {
+  const hovBg = bgColor.slice(0,7) + (parseInt(bgColor.slice(7)) - 200).toString();
+
   return(
-    <button onClick={action} className={`p-2 bg-red-${bgColor+100} hover:bg-red-${bgColor} rounded-xl`}>{text}</button>
+    <button onClick={action} className={`p-2 ${bgColor} rounded-xl`}>{text}</button>
   )
 }
 
@@ -26,6 +28,7 @@ function App() {
   const [ round, setRound ] = useState<number>(1);
   const [ playerHands, setplayerHands ] = useState<string[][]>([]);
   const [ isFirstAnimationComplete, setIsFirstAnimationComplete ] = useState(false);
+  const [ foldedPlayersApp, setPlayersFoldedApp ] = useState<number[]>([]);
   const [ displayMsg, setDisplayMsg ] = useState<string>("Welcome to our table!");
   const [ shownmsg, setShownmsg ] = useState<boolean>(false);
   const [ flopReady, setFlopReady ] = useState<boolean>(false);
@@ -75,6 +78,7 @@ function App() {
   }
   const dealFlop = () => {
     setFlopReady(true);
+
     const card1:string = deck.shift() as string;
     const card2:string = deck.shift() as string; 
     const card3:string = deck.shift() as string;
@@ -83,13 +87,13 @@ function App() {
     setIsTimeToDeal(false);
   }
   const dealNext = () => {
+
     setFlopReady(true);
     const card4:string = deck.shift() as string;
     const tempFlop = flop;
     tempFlop.push(card4);
     setTimeout(() => {  setFlop([...tempFlop]), setFlopReady(false); }, 300)
-    console.log(playerHands);
-    if(flop.length == 5) findWinner(playerHands, flop);
+
     if(flop.length == 5) console.log("should find winner");
     setIsTimeToDeal(false);
   }
@@ -101,10 +105,18 @@ function App() {
 
   const hierarchy = ['nothing', 'pair', 'two pair', 'three-of-a-kind', 'straight', 'flush', 'full house', 'four-of-a-kind',' straight-flush'];
 
-  console.log(`the board is ${board}`);
-  let winners: string[][] = [];
+  let winner: number = 0;
+  const winners: string[][] = [];
   let winningIndex = 0;
   
+  // filter for foldded players
+  plHands = plHands.filter((hand) => {
+    console.log(hand, plHands.indexOf(hand));
+    if (!foldedPlayersApp.includes(plHands.indexOf(hand) + 1)) {
+      return hand;
+    }}
+  )
+
   for(const cards of plHands){
     console.log( `the following cards ${cards} have`, hand(cards, board).type, `with ranks ${hand(cards, board).ranks}`);
 
@@ -112,20 +124,21 @@ function App() {
 
     if(typeof currentCombo == 'string' && hierarchy.indexOf(currentCombo) > winningIndex){
 
-      winners = [];
       winners.push([cards, hand(cards, board).ranks]);
       winningIndex = hierarchy.indexOf(currentCombo);
 
     } else if(typeof currentCombo == 'string' && hierarchy.indexOf(currentCombo) == winningIndex){
 
-      winners.push([cards, hand(cards, board).ranks]);
+      winners?.push([cards, hand(cards, board).ranks]);
 
     }
   }
   if(winners.length < 2 && winners.length > 0) setTimeout(() => {
     setDisplayMsg(`The winner is player ${playerHands.indexOf(winners[0][0]) + 1} with: ${winners[0][0]}. His rankings: ${winners[0][1]}`);
+    winner = playerHands.indexOf(winners[0][0]) + 1;
   }, 500)
 
+  if (winners.length === 1 ) winner = playerHands.indexOf(winners[0][0]) + 1;;
   console.log('the winners are', winners);
 
   if(winners.length >= 2){
@@ -159,7 +172,8 @@ function App() {
         }
         
         if(winnerFound) {
-          setDisplayMsg(`SAME rank case. the winner finally is, player ${playerHands.indexOf(finalWinner[0]) + 1} with hand ${finalWinner[0]} and its rankings are: ${finalWinner[1]}`);
+          setDisplayMsg(`SAME rank case. the winner finally is, player ${playerHands.indexOf( finalWinner[0]) + 1} with hand ${finalWinner[0]} and its rankings are: ${finalWinner[1]}`);
+          setWinner(playerHands.indexOf( finalWinner[0]) + 1);
           break;
         }
 
@@ -175,25 +189,15 @@ function App() {
             cardsString+= (winners[k][0]).toString() + " and ";
           }
           cardsString = cardsString.slice(0, cardsString.length - 4);
-          setDisplayMsg(`We have a draw between ${cardsString}`);
+          setDisplayMsg(`We have a draw between ${cardsString}. The players should split the pot.`);
         }
 
       }
     } 
+
+  console.log(`the winner (${winner}) gets ${pot}`);
   }
   const startNewRound = () => {
-    // pay the winner 
-    const tempMoneyArr = playerMoney;
-    const finalMoneyArr = tempMoneyArr.map((obj) => {
-      if (obj.playerIndex === winner) {
-        return {
-          ...obj,
-          playerMoney: obj.playerMoney + pot,
-        };
-      }
-      return obj;
-    })
-    setPlayerMoney(finalMoneyArr);
     // set the rest properties
     setRound(round+1);
     setActiveAnim(false);
@@ -203,15 +207,32 @@ function App() {
     setFlop([]);
     setPot(0);
     setWinner(0);
-    setIsTimeToDeal(false);
+    setPlayersFoldedApp([]);
   }
   const handleFirstAnimationEnd = () => {
     setIsFirstAnimationComplete(!isFirstAnimationComplete);
   };
 
   useEffect(() => {
-    if (winner !== 0 ) setDisplayMsg(`Player ${winner} wins ${pot} $`);
-  }, [winner, pot, playerHands])
+
+    if (winner !== 0 && isTimeToDeal ) setDisplayMsg(`Player ${winner} wins ${pot} $`);
+    if (flop.length === 5) {
+        // pay the winner 
+        const tempMoneyArr = playerMoney;
+        const finalMoneyArr = tempMoneyArr.map((obj) => {
+          if (obj.playerIndex === winner ) {
+            console.log(`obj.player.index ${obj.playerIndex} and winner ${winner}`);
+            return {
+              ...obj,
+              playerMoney: obj.playerMoney + pot,
+            };
+          }
+          return obj;
+        })
+
+        setPlayerMoney(finalMoneyArr);
+    }
+  }, [winner, pot, playerHands, isTimeToDeal])
 
   return (
     < div className='bg-black flex flex-col min-h-screen space-y-[85px] font-serif'>
@@ -230,28 +251,29 @@ function App() {
         <div className='absolute mt-72 ml-28'>
           <img className='h-[5.5rem]' src={avatar} alt="img2" />
         </div>
-        <PlayerHand playerHands={playerHands} cardsShown={showCards} roundsPlayed={round} playerMoney={playerMoney} setPlayerMoney={setPlayerMoney} pot={pot} setPot={setPot} setWinner={setWinner} setDisplayMsg={setDisplayMsg} isTimeToDeal={isTimeToDeal} setIsTimeToDeal={setIsTimeToDeal} />
+        <PlayerHand playerHands={playerHands} cardsShown={showCards} roundsPlayed={round} playerMoney={playerMoney} setPlayerMoney={setPlayerMoney} pot={pot} setPot={setPot} setWinner={setWinner} setDisplayMsg={setDisplayMsg} isTimeToDeal={isTimeToDeal} flop={flop} setPlayersFoldedApp={setPlayersFoldedApp}/>
         
   {/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ FLOP ~~~~~~~~~~~~~~~~~~~~~~~~~~ */}
-          <div className='flex space-x-3 text-pre '>{flop.map( (card, i) => <div key={i} className='bg-white px-1 pt-2 pb-1 rounded-md border border-black shadow-2xl'>{
-              <div className={`flex-col w-[65px] h-[110px] -mt-2 ${['♦', '♥'].includes(card.slice(-1)) ? 'text-red-500' : 'text-black'} `}>
-                <div className='flex space-x-1'>
-                  <div className='flex-col'>
-                    <div className='m-0 -mb-2 text-lg font-medium'>{card.slice(0,card.length-1)}</div>
-                    <div className='text-xl row-start-2'>{card.slice(-1)}</div>
-                  </div>
-                  <div className='border-2 border-red-500 invisible'>I am invisible</div>
+        <div className='flex space-x-3 text-pre '>{flop.map( (card, i) => <div key={i} className='bg-white px-1 pt-2 pb-1 rounded-md border border-black shadow-2xl'>{
+            <div className={`flex-col w-[65px] h-[110px] -mt-2 ${['♦', '♥'].includes(card.slice(-1)) ? 'text-red-500' : 'text-black'} `}>
+              <div className='flex space-x-1'>
+                <div className='flex-col'>
+                  <div className='m-0 -mb-2 text-lg font-medium'>{card.slice(0,card.length-1)}</div>
+                  <div className='text-xl row-start-2'>{card.slice(-1)}</div>
                 </div>
-                <div className='-mt-20 flex flex-col mx-1'>
-                  <div className='border-2 border-red-500 invisible'>I am invisible</div>
-                  <div key={i} className={`text-xs grid grid-cols-2`}>
-                      {Array.from({ length: parseInt(card.slice(0, (card.length-1)  ) ) > 0 ? parseInt(card.slice(0,card.length-1)) : 1 }).map((_, i) => (
-                        <div className={ ['A', 'K', 'Q', 'J'].includes(card.slice(0, (card.length-1)) ) ? `text-3xl ml-5 mt-4` : `text-md` } key={i}>{card.slice(-1)}</div>
-                      ))}
-                  </div>
+                <div className='border-2 border-red-500 invisible'>I am invisible</div>
+              </div>
+              <div className='-mt-20 flex flex-col mx-1'>
+                <div className='border-2 border-red-500 invisible'>I am invisible</div>
+                <div key={i} className={`text-xs grid grid-cols-2`}>
+                    {Array.from({ length: parseInt(card.slice(0, (card.length-1)  ) ) > 0 ? parseInt(card.slice(0, card.length-1)) : 1 }).map((_, i) => (
+                      <div className={ ['A', 'K', 'Q', 'J'].includes(card.slice(0, (card.length-1)) ) ? `text-3xl ml-5 mt-4` : `text-md` } key={i}>{card.slice(-1)}</div>
+                    ))}
                 </div>
               </div>
-            }</div>)}</div>
+            </div>
+          }</div>)}
+        </div>
   {/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SET UP THE GAME ~~~~~~~~~~~~~~~~~~~~~~~~~~ */}
         </div>
       </div>
@@ -259,12 +281,13 @@ function App() {
       ( <div className='mx-auto w-5/6 text-center text-white font-serif p-2 flex-1 flex items-center justify-center space-x-1 bg-[#24262e] rounded-t-[10rem]'>
           { flop.length < 3 && winner === 0 ? 
           <> 
-           <ControlBtn action={dealPlayer} text={'Deal Cards'} bgColor={500}/>
-           <ControlBtn action={dealFlop} text={'Deal Flop'} bgColor={400}/>
+           <ControlBtn action={dealPlayer} text={'Deal Players'} bgColor={'bg-red-600'}/>
+           <ControlBtn action={dealFlop} text={'Deal Flop'} bgColor={'bg-red-500'}/>
           </> : <></> }
-          { flop.length < 5 && winner === 0 ?  <ControlBtn action={dealNext} text={'Deal Next'} bgColor={500}/> : <></> }
-          <ControlBtn action={startNewRound} text={'New round'} bgColor={400}/>
-          <ControlBtn action={showPlayerCards}  text = {!showCards ? 'Reveal Cards' : 'Hide Cards'} bgColor={500}/>          
+          { flop.length < 5 && winner === 0 ?  <ControlBtn action={dealNext} text={'Deal Next'} bgColor={'bg-red-600'}/> : <></> }
+          { flop.length === 5  ? <ControlBtn action={startNewRound} text={'New round'} bgColor={'bg-red-500'}/> : <></> }
+          <ControlBtn action={showPlayerCards}  text = {!showCards ? 'Reveal Cards' : 'Hide Cards'} bgColor={'bg-red-600'}/>
+          { flop.length === 5  ? <ControlBtn action={() => {findWinner(playerHands, flop)}} text={'Find Winner'} bgColor={'bg-red-500'}/> : <></> }          
       </div> )
       : ( <div className='mx-auto border-t-2 w-1/2 text-center text-white bg-[#181717] rounded-t-2xl font-serif p-2 flex-1 flex items-center justify-center'>
           <div className='flex flex-col items-center'>

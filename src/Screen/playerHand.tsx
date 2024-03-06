@@ -15,7 +15,7 @@ interface IcurrentBets{
     playerBet: number;
 }
 
-const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roundsPlayed: number, playerMoney: Iplayer[], setPlayerMoney: React.Dispatch<React.SetStateAction<Iplayer[]>>, pot: number, setPot: React.Dispatch<React.SetStateAction<number>>, setWinner: React.Dispatch<React.SetStateAction<number>>, setDisplayMsg: React.Dispatch<React.SetStateAction<string>> , isTimeToDeal: boolean, setIsTimeToDeal: React.Dispatch<React.SetStateAction<boolean>> }> = ({playerHands, cardsShown, roundsPlayed, playerMoney, setPlayerMoney, pot, setPot, setWinner, setDisplayMsg, isTimeToDeal, setIsTimeToDeal} ) => {
+const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roundsPlayed: number, playerMoney: Iplayer[], setPlayerMoney: React.Dispatch<React.SetStateAction<Iplayer[]>>, pot: number, setPot: React.Dispatch<React.SetStateAction<number>>, setWinner: React.Dispatch<React.SetStateAction<number>>, setDisplayMsg: React.Dispatch<React.SetStateAction<string>> , isTimeToDeal: boolean, flop: string[], setPlayersFoldedApp: React.Dispatch<React.SetStateAction<number[]>> }> = ({playerHands, cardsShown, roundsPlayed, playerMoney, setPlayerMoney, pot, setPot, setWinner, setDisplayMsg, isTimeToDeal, flop, setPlayersFoldedApp} ) => {
 
     const [ dealerPos, setDealerPos ] = useState<number>(roundsPlayed%playerHands.length !== 0 ? roundsPlayed%playerHands.length : playerHands.length);
     const [ showBetInput, setShowBetInput ] = useState<boolean>(true);
@@ -26,8 +26,28 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
     const [ currentBet, setCurrentBet ] = useState<number>();
     const [ playersChecked, setPlayersChecked ] = useState<number[]>([]);
     const [ latestBetIndex, setLatestBetIndex ] = useState<number>();
+    const [ lastCallIndex, setLastCallIndex ] = useState<number>();
+    const [ lastCheckIndex, setLastCheckIndex ] = useState<number>();
     const [ playersFolded, setPlayersFolded ] = useState<number[]>([]);
     const [ possibleMoves, setPossibleMoves ] = useState<string[]>(['Bet', 'Check', 'Fold']);
+
+    const findWhoPlaysNext = (start = 0) => {
+
+        let nextPlayer = start;
+
+        do {
+        nextPlayer !== 0 ? nextPlayer += 1 : nextPlayer = playerPlaying + 1; 
+        
+            if(nextPlayer > playerHands.length ){
+            nextPlayer = 1;
+        }
+
+        } while (playersFolded.includes(nextPlayer) || nextPlayer == 0 )
+
+        setPlayerPlaying(nextPlayer);
+
+        return nextPlayer;
+    }
 
     // handles the selected option
     const handleSelectedOption = (event: React.ChangeEvent<HTMLSelectElement>, index: number) => {
@@ -36,34 +56,21 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
 
         if( playerChoice === 'Bet' || playerChoice === 'Raise') {
             setShowBetInput(!showBetInput);
-            console.log(`The player ${index} just put made a ${playerChoice}`);
         }
 
         // ~~~~~~ HANDLE CHECK ~~~~~~~
         if ( playerChoice === 'Check') {
 
-            let nextPlayer = 0;
+            // const nextPlayer = findWhoPlaysNext()
+            console.log(`findWhoPlaysNext ${findWhoPlaysNext()}`);
+            setPlayerPlaying(findWhoPlaysNext());
 
-            do {
-            nextPlayer !== 0 ? nextPlayer += 1 : nextPlayer = playerPlaying + 1; 
-            
-             if(nextPlayer > playerHands.length ){
-                nextPlayer = 1;
-            }
+            const tempChecked = playersChecked;
 
-            console.log(`current player: ${playerPlaying} next Player ${nextPlayer}`);
-
-            } while (playersFolded.includes(nextPlayer))
-
-            setPlayerPlaying(nextPlayer);
-
-            const tempChecked = playersChecked;   
-            if(nextPlayer === tempChecked[0]){
-                setLatestBetIndex(-1);
-            }
-            
             tempChecked.push(index+1);
             setPlayersChecked(tempChecked);
+            setLastCheckIndex(index+1);
+
         }
 
         // ~~~~~~ HANDLE CALL ~~~~~~~
@@ -86,7 +93,9 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
                     console.log("Not enough money left");    
                 } else{
                     //I have to find the previous player's total money bet ( newBets[player.playerIndex].playerBet == currentBet ) and substract the money the current player has already bet
-                    console.log(`lastBettingIndex: ${latestBetIndex} with newBets[latestBetIndex].playerBet: ${newBets[latestBetIndex].playerBet} and current player Playing: (${playerPlaying}) bets after calling -  newBets[player.playerIndex].playerBet}: ${newBets[player.playerIndex].playerBet} and betsBeforeNextCard ${betsBeforeNextCard[player.playerIndex].playerBet}`);
+                    console.log(`player ${index + 1} called ${(Math.abs(newBets[latestBetIndex].playerBet - betsBeforeNextCard[player.playerIndex].playerBet))} in the pot`);
+                    // console.log(`player 1 ${newBets[0].playerBet ? newBets[0].playerBet : newBets[0].playerIndex} player 2 ${newBets[1].playerBet ? newBets[1].playerBet : newBets[1].playerIndex} player 3 ${newBets[2].playerBet ? newBets[2].playerBet : newBets[2].playerIndex}`);
+                    console.log(`Latest bet ${currentBet}`);
                     return { ...player, ['playerMoney']: player.playerMoney - (Math.abs(newBets[latestBetIndex].playerBet - betsBeforeNextCard[player.playerIndex].playerBet))                        
                      } }  
                 }
@@ -99,10 +108,13 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
             } else {
                 setPot(pot + Math.abs(newBets[latestBetIndex].playerBet - betsBeforeNextCard[playerPlaying].playerBet));
             }
-        
-            setPlayerPlaying(playerPlaying !== playerHands.length ? playerPlaying + 1 : 1);
+            
+            //set last player called
+            setLastCallIndex(index + 1);
+            
+            setPlayerPlaying(findWhoPlaysNext());
         }
-
+         // ~~~~~~ HANDLE FOLD ~~~~~~~
         if ( playerChoice === 'Fold') handleFold(index);
     }
 
@@ -114,6 +126,9 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
         console.log(`Player ${playerInd } is going to put ${lastBet} in the pot`);
         setCurrentBet(parseInt(lastBet));
         setLatestBetIndex(playerInd);
+        // callers and checkers have to be settled again
+        setLastCallIndex(-1);
+        setLastCheckIndex(-1);
 
         // setCurrentBets
         const tempBets = betsBeforeNextCard;
@@ -130,7 +145,8 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
 
             if( player.playerIndex === playerInd) {
             // check if the player can handle the bet
-            if( lastBet > player.playerMoney ) console.log("Not enough money left");    
+            if( lastBet > player.playerMoney ) console.log("Not enough money left"); 
+            console.log(`current player ${playerInd} his newBet obj ${newBets[playerInd].playerBet} last bet ${lastBet}`);   
             return { ...player, ['playerMoney']: (player.playerMoney - lastBet) } }  
         return player; } );
 
@@ -145,8 +161,9 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
         for(let i = 1; i<= playerHands.length; i++){
             if(!playersFolded.includes(i)) currentPlayers.push(i);
         }
-        // if( currentPlayers.length === 1 ) setWinner(currentPlayers[0]);
+        
         setPlayerPlaying( nextPlayerIndex(currentPlayers, playerPlaying) );
+        console.log(`The next player is ${playerPlaying} and the players that have folded are ${playersFolded}`);
         // if all players had spoken
         setPossibleMoves( ['Raise', 'Call', 'Fold'] )
     }
@@ -157,7 +174,8 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
         const tempFoldedPlayers = [...playersFolded];
         tempFoldedPlayers?.push(playerInd+1);
         setPlayersFolded(tempFoldedPlayers);
-        console.log(`players folded  ${tempFoldedPlayers}`);
+        setPlayersFoldedApp(tempFoldedPlayers);
+
         // Sets the next player
         const currentPlayers = [];
 
@@ -166,10 +184,14 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
         }
         const nextPlayer = nextPlayerIndex(currentPlayers, playerPlaying);
         // Do we have a winner?
-        if( currentPlayers.length === 1 ) setWinner(currentPlayers[0]);
-
+        if( currentPlayers.length === 1 ) {
+            setWinner(currentPlayers[0]);
+            setPlayerPlaying(-5);
+            console.log('the game should stop');
+            setDisplayMsg(`Player ${currentPlayers[0]} wins.`);
+            return;
+        }
         setPlayerPlaying(nextPlayer);
-        console.log("the next player is", nextPlayer, "the pot is", pot);
     }
 
     useEffect(() => {
@@ -178,8 +200,8 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
 
         // Who moves?
         setPlayerPlaying(dealerPos !== playerHands.length ? dealerPos + 1 : 1);
+        console.log('I changed player playing');
         setPlayersFolded([]);
-
         // Set the current bets
         for(let i = 1; i<= playerHands.length; i++){
             betsBeforeNextCard[i] = {playerIndex: i, playerBet: 0};
@@ -188,17 +210,44 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
 
     // Checks wether all players had spoken
     useEffect(() => {
-        
-        if(latestBetIndex === playerPlaying) {
-            setDisplayMsg('Let`s deal the next card');
-            setPossibleMoves(['Bet', 'Check', 'Fold'])
-            setIsTimeToDeal(true);
-            setShowBetInput(true)
-            setLatestBetIndex(-1);
-            setPlayerPlaying(playersChecked[-1])
+        console.log(`latest bet index ${latestBetIndex} betting money ${currentBet} player playing ${playerPlaying} players checked ${playersChecked} players folded ${playersFolded}`);
+        if( ( latestBetIndex === playerPlaying && latestBetIndex > 0 ) || ( playersChecked[0] === playerPlaying && playerPlaying > 0 && latestBetIndex <= 0 ) || ( lastCallIndex === playerPlaying && lastCallIndex > 0 ) || (lastCheckIndex === playerPlaying && lastCheckIndex > 0 && latestBetIndex <= 0 ) ) {
+            console.log(`ENTERED HERE WITH ${latestBetIndex === playerPlaying} OR ${playersChecked.slice(-1)[0] === playerPlaying} OR ${lastCallIndex === playerPlaying} OR ${lastCheckIndex === playerPlaying}`);
+
+            setPlayerPlaying(0);
+            setLastCallIndex(-1);
+            setLastCheckIndex(-1);
+            setShowBetInput(true);
             setCurrentBet(1);
+        } 
+    }, [ latestBetIndex, lastCallIndex, lastCheckIndex, playersChecked, setDisplayMsg, playersFolded ])
+
+    // Responsible for changing variables when the next card is dealt
+    useEffect(() => {
+
+        const nextPlayerPos = dealerPos !== playerHands.length ? dealerPos + 1 : 1;
+        setPossibleMoves(['Bet', 'Check', 'Fold']);
+        setPlayersChecked([]);
+        setLatestBetIndex(-1);
+        setLastCallIndex(-1);
+        setLastCheckIndex(-1);
+
+        if ( !playersFolded.includes(nextPlayerPos) ) {
+            setPlayerPlaying(nextPlayerPos);
+            console.log(`i set the player ${nextPlayerPos}`);
+        } else {
+            const next = findWhoPlaysNext(dealerPos + 1)
+            setPlayerPlaying(next);
+            console.log(`i set the player ${next}`);
         }
-    }, [latestBetIndex, playerPlaying])
+
+        if(flop.length < 5 ) {
+            setDisplayMsg('Let`s deal the next card');
+        } else {
+            setDisplayMsg('');
+        }
+        setPossibleMoves(['Bet', 'Check', 'Fold']);
+    }, [ flop ])
     
     return(
        <>
