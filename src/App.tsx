@@ -138,7 +138,7 @@ function App() {
     winner = playerHands.indexOf(winners[0][0]) + 1;
   }, 500)
 
-  if (winners.length === 1 ) winner = playerHands.indexOf(winners[0][0]) + 1;;
+  if (winners.length === 1 ) winner = playerHands.indexOf(winners[0][0]) + 1;
   console.log('the winners are', winners);
 
   if(winners.length >= 2){
@@ -236,9 +236,9 @@ function App() {
 
   return (
     < div className='bg-black flex flex-col min-h-screen space-y-[85px] font-serif'>
-      <div className='bg-[#c5e9e9] w-full min-h-[5rem] text-center font-serif p-2 flex-1 flex flex-col items-center justify-center relative'>
+      <div className='bg-[#292b2b] w-full min-h-[5rem] text-center font-serif p-2 flex-1 flex flex-col items-center justify-center relative'>
           <div className='absolute top-2 left-2 px-4 py-1 text-white text-lg italic font-bold rounded-md bg-red-400'>Round: {round} </div>
-          <div className='font-semibold text-xl'>{displayMsg}</div>
+          <div className='font-semibold text-lg text-[#e7dddd]'>{displayMsg}</div>
       </div>
         
       <div className='h-[420px] min-h-[400px] flex items-center justify-center space-x-2 mx-4'>

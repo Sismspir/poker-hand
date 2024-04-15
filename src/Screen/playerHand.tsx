@@ -4,6 +4,7 @@ import cardeck1 from '../assets/imgs/cardeck1.png';
 import dealer from '../assets/imgs//dealer.png';
 import { useEffect, useState } from 'react';
 import { nextPlayerIndex } from "../poker-functions/blinds";
+import { DiVim } from "react-icons/di";
 
 interface Iplayer {
     playerIndex: number;
@@ -64,10 +65,12 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
             // const nextPlayer = findWhoPlaysNext()
             console.log(`findWhoPlaysNext ${findWhoPlaysNext()}`);
             setPlayerPlaying(findWhoPlaysNext());
+            setDisplayMsg(`Player ${findWhoPlaysNext()} make your move`);
 
             const tempChecked = playersChecked;
 
             tempChecked.push(index+1);
+
             setPlayersChecked(tempChecked);
             setLastCheckIndex(index+1);
 
@@ -94,9 +97,9 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
                 } else{
                     //I have to find the previous player's total money bet ( newBets[player.playerIndex].playerBet == currentBet ) and substract the money the current player has already bet
                     console.log(`player ${index + 1} called ${(Math.abs(newBets[latestBetIndex].playerBet - betsBeforeNextCard[player.playerIndex].playerBet))} in the pot`);
-                    // console.log(`player 1 ${newBets[0].playerBet ? newBets[0].playerBet : newBets[0].playerIndex} player 2 ${newBets[1].playerBet ? newBets[1].playerBet : newBets[1].playerIndex} player 3 ${newBets[2].playerBet ? newBets[2].playerBet : newBets[2].playerIndex}`);
-                    console.log(`Latest bet ${currentBet}`);
-                    return { ...player, ['playerMoney']: player.playerMoney - (Math.abs(newBets[latestBetIndex].playerBet - betsBeforeNextCard[player.playerIndex].playerBet))                        
+                    console.log(`player 1 ${newBets[0] !== undefined && newBets[0].playerBet } player 2 ${newBets[1] !== undefined && newBets[1].playerBet} player 3 ${newBets[0] !== undefined && newBets[2].playerBet}`);
+                    console.log(`Latest bet ${currentBet} and last call index ${lastCallIndex}`);
+                    return { ...player, ['playerMoney']: player.playerMoney - (Math.abs(newBets[latestBetIndex].playerBet - betsBeforeNextCard[player.playerIndex].playerBet)) 
                      } }  
                 }
             return player; } );
@@ -113,6 +116,7 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
             setLastCallIndex(index + 1);
             
             setPlayerPlaying(findWhoPlaysNext());
+            setDisplayMsg(`Player ${findWhoPlaysNext()} make your move`);
         }
          // ~~~~~~ HANDLE FOLD ~~~~~~~
         if ( playerChoice === 'Fold') handleFold(index);
@@ -163,7 +167,8 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
         }
         
         setPlayerPlaying( nextPlayerIndex(currentPlayers, playerPlaying) );
-        console.log(`The next player is ${playerPlaying} and the players that have folded are ${playersFolded}`);
+        setDisplayMsg(`Player ${findWhoPlaysNext()} make your move`);
+
         // if all players had spoken
         setPossibleMoves( ['Raise', 'Call', 'Fold'] )
     }
@@ -192,6 +197,7 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
             return;
         }
         setPlayerPlaying(nextPlayer);
+        setDisplayMsg(`Player ${findWhoPlaysNext()} make your move`);
     }
 
     useEffect(() => {
@@ -241,9 +247,9 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
             console.log(`i set the player ${next}`);
         }
 
-        if(flop.length < 5 ) {
+        if( flop.length > 1 && flop.length < 5 && isTimeToDeal ) {
             setDisplayMsg('Let`s deal the next card');
-        } else {
+        } else if ( flop.length > 1 ){
             setDisplayMsg('');
         }
         setPossibleMoves(['Bet', 'Check', 'Fold']);
@@ -256,7 +262,8 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
             <div className={`rounded-full ${playersFolded?.includes(ind+1) ? 'bg-red-400' : 'bg-slate-500'} text-nowrap border-2 border-black px-4 py-1 flex ${[0,2].includes(ind) ? `-rotate-45 absolute bottom-20 left-28` : `rotate-45 absolute bottom-20 right-32`}`}>
                 {ind + 1 === playerPlaying && playerHands.length !== 1 && !playersFolded?.includes(ind+1) && !isTimeToDeal ? (
                 <div className="">
-                    <p className="mt-1">Your turn</p>
+                    <div className='text-[#ffffff] font-mono'>{ playerMoney.find(player => { return player.playerIndex === ind + 1})?.playerMoney }$
+                    {playersFolded?.includes(ind+1) && <p>Fold</p>}</div>
                     {showBetInput ? 
 
                     (<select onChange={(event) => handleSelectedOption(event, ind)} className='bg-slate-700' name="" id="">
@@ -276,9 +283,9 @@ const PlayerHands: React.FC<{ playerHands: string[][], cardsShown: boolean, roun
                             </div>
                         </form>)} 
                 </div>) :  
-
-                <div className='text-[#ffffff] font-mono'>{ playerMoney.find(player => { return player.playerIndex === ind + 1})?.playerMoney } $
-                {playersFolded?.includes(ind+1) && <p>Fold</p>}</div>}
+                <div className='text-[#ffffff] font-mono'>{ playerMoney.find(player => { return player.playerIndex === ind + 1})?.playerMoney }$
+                {playersFolded?.includes(ind+1) && <p>Fold</p>}</div>
+                 }
             </div>
             <div className="text-lg flex items-center justify-center space-x-2">
                 <div>Player {ind+1}</div>
